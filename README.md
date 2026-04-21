@@ -1,4 +1,4 @@
-# ByondPasli
+# BeyondPasli
 SEPS: Semantic-enhanced Patch Slimming Framework for fine-grained cross-modal alignment
 We referred to the implementations of LAPS and D2S-VSE to build up the repository. Our paper is at here.
 
