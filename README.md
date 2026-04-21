@@ -17,17 +17,17 @@ Functionally, as depicted in Figure 1(a), SEPS operates through a sophisticated 
 Extensive experiments on Flickr30K and MS-COCO datasets demonstrate that SEPS achieves state-of-the-art performance, outperforming existing methods by 23%-86% in rSum across various model backbones, with particularly significant improvements in text-to-image retrieval tasks.
 
 
-Preparation
-Environments
+# Preparation
+## Environments
 We recommended the following dependencies:
 
-python >= 3.8
-torch >= 1.12.0
-torchvision >= 0.13.0
-transformers >=4.32.0
-opencv-python
-tensorboard
-Datasets
+- python >= 3.8
+- torch >= 1.12.0
+- torchvision >= 0.13.0
+- transformers >=4.32.0
+- opencv-python
+- tensorboard
+## Datasets
 We have prepared the caption files for two datasets in data/ folder, hence you just need to download the images of the datasets. The Flickr30K (f30k) images can be downloaded in flickr30k-images. The MSCOCO (coco) images can be downloaded in train2014, and val2014. We hope that the final data are organized as follows:
 
 data
@@ -54,17 +54,17 @@ data
 ├── coco-images # coco images
 │   ├── train2014
 │   └── val2014
-Model Weights
+## Model Weights
 Our framework needs to get the pre-trained weights for BERT-base, ViT-base, and Swin-base models. You also can choose the weights downloaded by transformers automatically (the weights will be downloaded at ~/.cache).
 
-Training
+# Training
 First, we set up the arguments, detailed information about the arguments is shown in arguments.py.
 
---dataset: the chosen datasets, e.g., f30k and coco.
---data_path: the root path of datasets, e.g., data/.
---multi_gpu: whether to use the multiple GPUs (DDP) to train the models.
---gpu-id, the chosen GPU number, e.g., 0-7.
---logger_name, the path of logger files, e.g., runs/f30k_test or runs/coco_test
+- --dataset: the chosen datasets, e.g., f30k and coco.
+- --data_path: the root path of datasets, e.g., data/.
+- --multi_gpu: whether to use the multiple GPUs (DDP) to train the models.
+- --gpu-id, the chosen GPU number, e.g., 0-7.
+- --logger_name, the path of logger files, e.g., runs/f30k_test or runs/coco_test
 Then, we run the train.py for model training. The models need about 20,000 GPU-Memory (one 3090 GPU) when batch size = 64 and about 40,000 GPU-Memory (one A40 GPU) when batch size = 108. You need to modify the batch size according to the hardware conditions, and we also support the multiple GPUs training. Besides, considering the GPU-memory limitation, we don't integrate the Gumbel-softmax sampling for the patch selection in the repository. The performances are not affected much but GPU-memory is reduced a lot (see more details in the paper).
 
 ## single GPU
@@ -97,12 +97,12 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.run --nproc_per_node=4 
 ### swin + coco
 CUDA_VISIBLE_DEVICES=0,1,2 python -m torch.distributed.run --nproc_per_node=3 train.py --dataset coco --multi_gpu 1 --logger_name runs/coco_swin --batch_size 72 --vit_type swin --embed_size 512 --sparse_ratio 0.8 --aggr_ratio 0.6
 CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.run --nproc_per_node=4 train.py --dataset coco --multi_gpu 1 --logger_name runs/coco_swin --batch_size 64 --vit_type swin --embed_size 512 --sparse_ratio 0.8 --aggr_ratio 0.6
-Evaluation
+# Evaluation
 Run eval.py to evaluate the trained models on f30k or coco datasets, and you need to specify the model paths.
 
 python eval.py --dataset f30k --data_path data/ --gpu-id 0
 python eval.py --dataset coco --data_path data/ --gpu-id 1
-Performances
+# Performances
 The following tables show the reproducing results of cross-modal retrieval on MSCOCO and Flickr30K datasets. We provide the training logs, checkpoints, performances, and hyper-parameters.
 
 Datasets	Visual encoders	I2T R@1	I2T R@5	T2I R@1	T2I R@5	rSum	Model checkpoint and train log
