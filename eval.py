@@ -20,13 +20,11 @@ def main():
 
     if opt.dataset == 'coco':
         weights_bases = [    
-            "/home/ssim0425/Patch/SEPS/runs/seps_9start", ####################
-            # 'runs/coco_swin',
+            'runs/coco_swin',
         ]
     else:
         weights_bases = [
-            'runs/f30k_vit_224',
-            # 'runs/f30k_swin',
+            'runs/f30k_swin',
         ]
 
     for base in weights_bases:
