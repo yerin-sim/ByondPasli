@@ -49,7 +49,7 @@ def main():
     )
     print('Number of images for train-set:', train_loader.dataset.num_images)
 
-    split = 'testall' if opt.dataset == 'coco' else 'test'
+    split = 'dev' if opt.dataset == 'coco' else 'dev'
     test_loader = image_caption.get_test_loader(
         opt, opt.data_path, tokenizer, opt.batch_size, opt.workers, split
     )
