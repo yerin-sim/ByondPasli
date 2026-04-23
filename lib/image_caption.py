@@ -250,6 +250,13 @@ def get_test_loader(opt, data_path, tokenizer, batch_size, workers, split='test'
     return test_loader
 
 
+def get_test_loader(opt, data_path, tokenizer, batch_size, workers, split='dev'):
+
+    test_loader = get_loader(opt, data_path, split, tokenizer,
+                             batch_size, False, workers, train=False) 
+    return test_loader
+
+
 if __name__ == '__main__':
 
     pass
