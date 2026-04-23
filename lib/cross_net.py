@@ -135,7 +135,7 @@ class CrossSparseAggrNet_v2(nn.Module):
         necessity = torch.zeros(B, K, device=sim_pw.device, dtype=sim_pw.dtype)
         owner_margin = F.relu(a1 - a2)
         necessity.scatter_add_(1, owner, owner_margin)
-        ####necessity = necessity / float(max(N, 1))
+        #necessity = necessity / float(max(N, 1))
         return necessity
 
     def _compute_redundancy(self, selected_tokens_norm):
@@ -185,9 +185,9 @@ class CrossSparseAggrNet_v2(nn.Module):
         neg_text_expand = text_token_bank.index_select(0, hard_neg_idx)
         neg_text_lens = text_lens_bank.index_select(0, hard_neg_idx)
         sim_neg = torch.bmm(selected_tokens_norm, neg_text_expand.transpose(1, 2))
-        ######neg_patch_affinity = self._mean_topk_lastdim(sim_neg, topk=2, lengths=neg_text_lens)
+        #neg_patch_affinity = self._mean_topk_lastdim(sim_neg, topk=2, lengths=neg_text_lens)
         neg_patch_affinity = self._mean_topk_lastdim(sim_neg, topk=1, lengths=neg_text_lens)
-        #####exactness_score = pos_patch_support - neg_patch_affinity
+        #exactness_score = pos_patch_support - neg_patch_affinity
         exactness_score = pos_patch_support - 0.35 * neg_patch_affinity
 
         redundancy_score = self._compute_redundancy(selected_tokens_norm)
