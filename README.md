@@ -1,35 +1,69 @@
-# BeyondPasli
-SEPS: Semantic-enhanced Patch Slimming Framework for fine-grained cross-modal alignment
-We referred to the implementations of LAPS and D2S-VSE to build up the repository. Our paper is at here.
+# BeyondPaSli: Discriminative Reweighting for Fine-Grained Cross-Modal Alignment
 
-# Introduction
-Fine-grained cross-modal alignment constitutes the bedrock of modern vision-language understanding, serving as the pivotal mechanism for establishing precise correspondences between visual regions and linguistic concepts. This alignment capability underpins a wide spectrum of downstream applications, ranging from visual question answering and image captioning to the increasingly demanding task of cross-modal retrieval. As multimodal systems evolve toward granular comprehension, the ability to accurately disentangle and align complex visual scenes with specific semantic cues has become a critical imperative.
+This repository provides the implementation of **Beyond Patch Slimming: Discriminative Reweighting for Fine-Grained Cross-Modal Alignment**.
 
+BeyondPaSli is a post-selection evidence refinement framework for fine-grained image--text retrieval. We build on the sparse--dense patch selection pipeline of SEPS, but insert **Reasonableness-aware Discriminative Refinement (RaDR)** between patch selection and aggregation. Instead of treating attention-derived patch scores as final evidence, RaDR re-scores the selected patch set using **attention prior**, **necessity**, **exactness**, and **redundancy**, producing a more discriminative evidence set for final token--word matching.
 
-Despite significant progress, current alignment paradigms universally encounter a fundamental theoretical bottleneck: \textbf{Semantic Sparsity Bias}. This bias arises from the intrinsic asymmetry between modalities—visual inputs inherently carry dense, continuous, and high-entropy spatial information, whereas textual descriptions (captions) act as sparse, discrete, and low-entropy anchors. In Vision Transformer (ViT) architectures, this asymmetry manifests as two persistent challenges: \textit{patch redundancy}, where a vast majority of visual tokens lack explicit textual supervision, and \textit{patch ambiguity}, where the concise nature of sparse text fails to provide sufficient discriminative cues for specific visual regions. As illustrated in Figure \ref{fig:motivation}(a), a generic caption such as "A woman with a tennis racket" fails to describe the surrounding context or specific visual attributes, leading to the inadvertent suppression of visually vital but textually unmentioned patches during the alignment process.
+This repository is adapted from [SEPS](https://github.com/Sweet4tars/seps), which refers to the implementations of [LAPS](https://github.com/CrossmodalGroup/LAPS) and [D2S-VSE](https://github.com/liuyyy111/d2s-vse).
 
-Recent advancements have sought to leverage Multimodal Large Language Models (MLLMs) to augment textual representations. While promising, naive integration of MLLMs often introduces \textit{semantic drift}, where the hallucinated or overly detailed descriptions from MLLMs conflict with the ground-truth sparse captions, creating noise that degrades retrieval precision. Furthermore, conventional alignment metrics typically rely on global mean pooling, which indiscriminately aggregates scores from all patches. This approach is fundamentally flawed in complex scenes, as irrelevant background patches with low similarity scores effectively dilute the contribution of highly aligned foreground regions, obscuring the true semantic correlation.
+Our paper is coming soon.
 
-To address these limitations, we propose the \textbf{Semantic-Enhanced Patch Slimming (SEPS)} framework, a systematic approach designed to resolve the Semantic Sparsity Bias through a novel Dual-Granularity Semantic Calibration (DGSC) mechanism. As shown in Figure 1(b), our key insight is to treat MLLM-generated content not merely as auxiliary text, but as a Holistic Visual-Linguistic Anchor. By integrating this dense anchor with the original sparse queries, we establish a semantic consensus mechanism that cross-verifies visual patches against both discriminative keywords (Sparse) and contextual narratives (Dense).
+---
 
-Functionally, as depicted in Figure 1(a), SEPS operates through a sophisticated pipeline. We first extract multi-view features and employ the DGSC module to identify salient visual patches. Unlike previous methods that filter patches based on single-source supervision, DGSC performs a ``weighted consensus'' process to preserve patches that are relevant to either the specific query or the global context. Subsequently, we introduce the Salience-Guided Metric Aggregation (SGMA) module, which replaces standard mean pooling with a relevance-aware alignment strategy. This ensures that the final similarity score is dominated by the most semantically significant patch-word pairs, making the metric robust to background noise.
+## Introduction
 
-Extensive experiments on Flickr30K and MS-COCO datasets demonstrate that SEPS achieves state-of-the-art performance, outperforming existing methods by 23%-86% in rSum across various model backbones, with particularly significant improvements in text-to-image retrieval tasks.
+Fine-grained image--text retrieval requires more than detecting coarse semantic overlap between an image and a caption. In large-candidate retrieval, the decisive challenge is to identify which local visual evidence justifies the top-ranked match against semantically confusable hard negatives. A visual patch may be broadly relevant to a caption, but still be replaceable, redundant, or equally compatible with a hard negative.
 
+<div align=center>
+<img src="IMG/img2.PNG" width="100%">
+</div>
 
-# Preparation
-## Environments
-We recommended the following dependencies:
+Recent fine-grained cross-modal alignment methods improve local correspondence by matching region--word or patch--word representations. Patch-slimming methods further reduce redundant visual tokens before matching, allowing the model to focus on a compact candidate set. However, existing patch-slimming frameworks mainly ask **which patches should be retained**, while leaving a subsequent question underexplored: **which retained patches should actually govern the final ranking decision?**
+
+This distinction is important because attention-derived relevance is not equivalent to decision-critical evidence. Attention provides a useful prior for identifying potentially relevant visual regions, but a highly attended patch may only capture shared scene-level cues. In hard-negative retrieval, the ground-truth caption and the most confusable distractor often share objects, backgrounds, or coarse visual semantics. As a result, attention-based selection may preserve patches that are plausible for both captions, while failing to emphasize the evidence that separates the correct pair from its hardest negative.
+
+To address this limitation, we propose **BeyondPaSli**, a ranking-sensitive evidence refinement framework for fine-grained cross-modal alignment. BeyondPaSli preserves the sparse--dense patch selection and aggregation backbone of SEPS, but inserts **Reasonableness-aware Discriminative Refinement (RaDR)** between selection and aggregation. RaDR treats attention as an initial prior rather than final evidence, and re-scores the selected patch set using three complementary criteria:
+
+- **Necessity** measures whether a patch is difficult to replace for explaining the positive caption.
+- **Exactness** measures whether a patch supports the positive caption more strongly than the hardest negative caption.
+- **Redundancy** penalizes substitutable patches that provide overlapping evidence.
+
+By combining these signals with the attention prior, BeyondPaSli reframes patch slimming from **relevance-preserving compression** into **ranking-sensitive evidence refinement**. The final matching stage is therefore driven by patches that are not only relevant, but also necessary, discriminative, and less redundant.
+
+Functionally, BeyondPaSli first obtains candidate patches through sparse--dense text-aware patch selection. RaDR then re-evaluates the selected patches before aggregation, retaining a refined evidence set for bidirectional token--word matching. This design does not generate additional candidates or replace the matching operator. Instead, it changes the evidence structure that enters the final similarity computation.
+
+Extensive experiments on Flickr30K and MS-COCO demonstrate that BeyondPaSli consistently improves image--text retrieval across ViT and Swin backbones at both 224 and 384 resolutions. The largest gains appear in hard-negative retrieval settings. On MS-COCO 5K with Swin-Base-224, BeyondPaSli improves over SEPS by **+42.0 rSum**, including **+11.1 image-to-text R@1** and **+14.3 text-to-image R@1**.
+
+<div align=center>
+<img src="IMG/img.PNG" width="100%">
+</div>
+
+---
+
+## Preparation
+
+### Environments
+
+We recommend the following dependencies:
 
 - python >= 3.8
 - torch >= 1.12.0
 - torchvision >= 0.13.0
-- transformers >=4.32.0
+- transformers >= 4.32.0
 - opencv-python
 - tensorboard
-## Datasets
-We have prepared the caption files for two datasets in data/ folder, hence you just need to download the images of the datasets. The Flickr30K (f30k) images can be downloaded in flickr30k-images. The MSCOCO (coco) images can be downloaded in train2014, and val2014. We hope that the final data are organized as follows:
 
+---
+
+### Datasets
+
+We have prepared the caption files for two datasets in the `data/` folder, hence you only need to download the images.
+
+The Flickr30K images can be downloaded from [flickr30k-images](https://www.kaggle.com/datasets/hsankesara/flickr-image-dataset). The MSCOCO images can be downloaded from [train2014](http://images.cocodataset.org/zips/train2014.zip) and [val2014](http://images.cocodataset.org/zips/val2014.zip).
+
+The final data structure should be organized as follows:
+
+```text
 data
 ├── coco  # coco captions
 │   ├── coco_testall.jsonl
@@ -54,67 +88,287 @@ data
 ├── coco-images # coco images
 │   ├── train2014
 │   └── val2014
-## Model Weights
-Our framework needs to get the pre-trained weights for BERT-base, ViT-base, and Swin-base models. You also can choose the weights downloaded by transformers automatically (the weights will be downloaded at ~/.cache).
+```
 
-# Training
-First, we set up the arguments, detailed information about the arguments is shown in arguments.py.
+---
 
-- --dataset: the chosen datasets, e.g., f30k and coco.
-- --data_path: the root path of datasets, e.g., data/.
-- --multi_gpu: whether to use the multiple GPUs (DDP) to train the models.
-- --gpu-id, the chosen GPU number, e.g., 0-7.
-- --logger_name, the path of logger files, e.g., runs/f30k_test or runs/coco_test
-Then, we run the train.py for model training. The models need about 20,000 GPU-Memory (one 3090 GPU) when batch size = 64 and about 40,000 GPU-Memory (one A40 GPU) when batch size = 108. You need to modify the batch size according to the hardware conditions, and we also support the multiple GPUs training. Besides, considering the GPU-memory limitation, we don't integrate the Gumbel-softmax sampling for the patch selection in the repository. The performances are not affected much but GPU-memory is reduced a lot (see more details in the paper).
+### Model Weights
 
+Our framework uses pretrained weights for [BERT-base](https://huggingface.co/bert-base-uncased), [ViT-base](https://huggingface.co/google/vit-base-patch16-224-in21k), and [Swin-base](https://huggingface.co/microsoft/swin-base-patch4-window7-224).
+
+You can also let [transformers](https://github.com/huggingface/transformers) download the weights automatically. The downloaded weights will be cached under `~/.cache`.
+
+---
+
+## Training
+
+First, set up the training arguments. Detailed information about the arguments is provided in `arguments.py`.
+
+Basic arguments:
+
+- `--dataset`: the dataset name, e.g., `f30k` or `coco`.
+- `--data_path`: the root path of datasets, e.g., `data/`.
+- `--multi_gpu`: whether to use multiple GPUs with DDP.
+- `--gpu-id`: the chosen GPU number, e.g., `0`.
+- `--logger_name`: the path for logs and checkpoints, e.g., `runs/f30k_beyondpasli` or `runs/coco_beyondpasli`.
+
+BeyondPaSli/RaDR arguments:
+
+- `--use_reasonable_refine`: whether to enable RaDR.
+- `--refine_eval`: whether to use refined evidence during evaluation.
+- `--refine_ratio`: the ratio of selected patches retained after RaDR.
+- `--reasonable_start_epoch`: the epoch to activate RaDR.
+- `--reasonable_warmup_epochs`: the warm-up duration for RaDR.
+- `--cf_loss_weight`: the weight for necessity regularization.
+- `--exact_loss_weight`: the weight for exactness regularization.
+- `--necessity_margin`: the margin for necessity regularization.
+- `--exact_margin`: the margin for exactness regularization.
+- `--score_attn_weight`: the weight of attention prior in the RaDR score.
+- `--score_nec_weight`: the weight of necessity in the RaDR score.
+- `--score_exact_weight`: the weight of exactness in the RaDR score.
+- `--score_red_weight`: the weight of redundancy in the RaDR score.
+
+Default BeyondPaSli settings:
+
+```text
+batch_size = 32
+embed_size = 512
+aggr_ratio = 0.4
+refine_ratio = 0.8
+reasonable_start_epoch = 4
+reasonable_warmup_epochs = 3
+cf_loss_weight = 0.03
+exact_loss_weight = 0.03
+necessity_margin = 0.01
+exact_margin = 0.00
+score_attn_weight = 0.10
+score_nec_weight = 0.55
+score_exact_weight = 0.25
+score_red_weight = 0.10
+```
+
+For ViT backbones, we use:
+
+```text
+sparse_ratio = 0.5
+```
+
+For Swin backbones, we use:
+
+```text
+sparse_ratio = 0.8
+```
+
+Then, run `train.py` for model training. You may need to modify the batch size according to your GPU memory. Multi-GPU training is also supported.
+
+---
+
+```bash
 ## single GPU
 
-### vit + f30k 
-python train.py --dataset f30k --gpu-id 0 --logger_name runs/f30k_vit --batch_size 64 --vit_type vit --embed_size 512 --sparse_ratio 0.5 --aggr_ratio 0.4
+### vit + f30k
+python train.py \
+  --dataset f30k \
+  --gpu-id 0 \
+  --logger_name runs/f30k_vit_beyondpasli \
+  --batch_size 32 \
+  --vit_type vit \
+  --embed_size 512 \
+  --sparse_ratio 0.5 \
+  --aggr_ratio 0.4 \
+  --use_reasonable_refine 1 \
+  --reasonable_start_epoch 4 \
+  --reasonable_warmup_epochs 3 \
+  --refine_eval 1 \
+  --refine_ratio 0.8 \
+  --cf_loss_weight 0.03 \
+  --exact_loss_weight 0.03 \
+  --necessity_margin 0.01 \
+  --exact_margin 0.00 \
+  --score_attn_weight 0.10 \
+  --score_nec_weight 0.55 \
+  --score_exact_weight 0.25 \
+  --score_red_weight 0.10
 
 ### swin + f30k
-python train.py --dataset f30k --gpu-id 0 --logger_name runs/f30k_swin --batch_size 64 --vit_type swin  --embed_size 512 --sparse_ratio 0.8 --aggr_ratio 0.6
+python train.py \
+  --dataset f30k \
+  --gpu-id 0 \
+  --logger_name runs/f30k_swin_beyondpasli \
+  --batch_size 32 \
+  --vit_type swin \
+  --embed_size 512 \
+  --sparse_ratio 0.8 \
+  --aggr_ratio 0.4 \
+  --use_reasonable_refine 1 \
+  --reasonable_start_epoch 4 \
+  --reasonable_warmup_epochs 3 \
+  --refine_eval 1 \
+  --refine_ratio 0.8 \
+  --cf_loss_weight 0.03 \
+  --exact_loss_weight 0.03 \
+  --necessity_margin 0.01 \
+  --exact_margin 0.00 \
+  --score_attn_weight 0.10 \
+  --score_nec_weight 0.55 \
+  --score_exact_weight 0.25 \
+  --score_red_weight 0.10
 
-### vit + coco 
-python train.py --dataset coco --gpu-id 0 --logger_name runs/coco_vit --batch_size 64 --vit_type vit --embed_size 512 --sparse_ratio 0.5 --aggr_ratio 0.4
+### vit + coco
+python train.py \
+  --dataset coco \
+  --gpu-id 0 \
+  --logger_name runs/coco_vit_beyondpasli \
+  --batch_size 32 \
+  --vit_type vit \
+  --embed_size 512 \
+  --sparse_ratio 0.5 \
+  --aggr_ratio 0.4 \
+  --use_reasonable_refine 1 \
+  --reasonable_start_epoch 4 \
+  --reasonable_warmup_epochs 3 \
+  --refine_eval 1 \
+  --refine_ratio 0.8 \
+  --cf_loss_weight 0.03 \
+  --exact_loss_weight 0.03 \
+  --necessity_margin 0.01 \
+  --exact_margin 0.00 \
+  --score_attn_weight 0.10 \
+  --score_nec_weight 0.55 \
+  --score_exact_weight 0.25 \
+  --score_red_weight 0.10
 
 ### swin + coco
-python train.py --dataset coco --gpu-id 0 --logger_name runs/coco_swin --batch_size 64 --vit_type swin  --embed_size 512 --sparse_ratio 0.8 --aggr_ratio 0.6
+python train.py \
+  --dataset coco \
+  --gpu-id 0 \
+  --logger_name runs/coco_swin_beyondpasli \
+  --batch_size 32 \
+  --vit_type swin \
+  --embed_size 512 \
+  --sparse_ratio 0.8 \
+  --aggr_ratio 0.4 \
+  --use_reasonable_refine 1 \
+  --reasonable_start_epoch 4 \
+  --reasonable_warmup_epochs 3 \
+  --refine_eval 1 \
+  --refine_ratio 0.8 \
+  --cf_loss_weight 0.03 \
+  --exact_loss_weight 0.03 \
+  --necessity_margin 0.01 \
+  --exact_margin 0.00 \
+  --score_attn_weight 0.10 \
+  --score_nec_weight 0.55 \
+  --score_exact_weight 0.25 \
+  --score_red_weight 0.10
 
 
 ## multiple GPUs
 
 ### vit + f30k
-CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.run --nproc_per_node=2 train.py --dataset f30k --multi_gpu 1 --logger_name runs/f30k_vit --batch_size 64 --vit_type vit --embed_size 512 --sparse_ratio 0.5 --aggr_ratio 0.4
+CUDA_VISIBLE_DEVICES=0,1 torchrun \
+  --master_port=29501 \
+  --nproc_per_node=2 \
+  train.py \
+  --dataset f30k \
+  --multi_gpu 1 \
+  --logger_name runs/f30k_vit_beyondpasli \
+  --batch_size 32 \
+  --vit_type vit \
+  --embed_size 512 \
+  --sparse_ratio 0.5 \
+  --aggr_ratio 0.4 \
+  --use_reasonable_refine 1 \
+  --reasonable_start_epoch 4 \
+  --reasonable_warmup_epochs 3 \
+  --refine_eval 1 \
+  --refine_ratio 0.8 \
+  --cf_loss_weight 0.03 \
+  --exact_loss_weight 0.03 \
+  --necessity_margin 0.01 \
+  --exact_margin 0.00 \
+  --score_attn_weight 0.10 \
+  --score_nec_weight 0.55 \
+  --score_exact_weight 0.25 \
+  --score_red_weight 0.10
 
 ### swin + f30k
-CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.run --nproc_per_node=2 train.py --dataset f30k --multi_gpu 1 --logger_name runs/f30k_swin --batch_size 64 --vit_type swin --embed_size 1024 --sparse_ratio 0.8 --aggr_ratio 0.6
+CUDA_VISIBLE_DEVICES=0,1 torchrun \
+  --master_port=29502 \
+  --nproc_per_node=2 \
+  train.py \
+  --dataset f30k \
+  --multi_gpu 1 \
+  --logger_name runs/f30k_swin_beyondpasli \
+  --batch_size 32 \
+  --vit_type swin \
+  --embed_size 512 \
+  --sparse_ratio 0.8 \
+  --aggr_ratio 0.4 \
+  --use_reasonable_refine 1 \
+  --reasonable_start_epoch 4 \
+  --reasonable_warmup_epochs 3 \
+  --refine_eval 1 \
+  --refine_ratio 0.8 \
+  --cf_loss_weight 0.03 \
+  --exact_loss_weight 0.03 \
+  --necessity_margin 0.01 \
+  --exact_margin 0.00 \
+  --score_attn_weight 0.10 \
+  --score_nec_weight 0.55 \
+  --score_exact_weight 0.25 \
+  --score_red_weight 0.10
 
+```
 
-### vit + coco
-CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.run --nproc_per_node=4 train.py --dataset coco --multi_gpu 1 --logger_name runs/coco_vit --batch_size 64 --vit_type vit --embed_size 512 --sparse_ratio 0.5 --aggr_ratio 0.4
+---
 
-### swin + coco
-CUDA_VISIBLE_DEVICES=0,1,2 python -m torch.distributed.run --nproc_per_node=3 train.py --dataset coco --multi_gpu 1 --logger_name runs/coco_swin --batch_size 72 --vit_type swin --embed_size 512 --sparse_ratio 0.8 --aggr_ratio 0.6
-CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.run --nproc_per_node=4 train.py --dataset coco --multi_gpu 1 --logger_name runs/coco_swin --batch_size 64 --vit_type swin --embed_size 512 --sparse_ratio 0.8 --aggr_ratio 0.6
-# Evaluation
-Run eval.py to evaluate the trained models on f30k or coco datasets, and you need to specify the model paths.
+## Evaluation
 
+Run `eval.py` to evaluate the trained models on Flickr30K or MS-COCO. Specify the model path according to your checkpoint directory.
+
+```bash
 python eval.py --dataset f30k --data_path data/ --gpu-id 0
 python eval.py --dataset coco --data_path data/ --gpu-id 1
-# Performances
-The following tables show the reproducing results of cross-modal retrieval on MSCOCO and Flickr30K datasets. We provide the training logs, checkpoints, performances, and hyper-parameters.
+```
 
-Datasets	Visual encoders	I2T R@1	I2T R@5	T2I R@1	T2I R@5	rSum	Model checkpoint and train log
-Flickr30K	ViT-224	86.1	93.7	86.9	98.1	560.9	Link
-Flickr30K	ViT-384	90.7	94.4	89.3	99.3	571.5	Link
-Flickr30K	Swin-224	89.8	96.9	88.0	98.9	572.0	Link
-Flickr30K	Swin-384	93.6	98.3	91.6	99.4	581.9	Link
-MSCOCO-1K	ViT-224	89.0	94.8	88.5	99.3	569.5	Link
-MSCOCO-1K	ViT-384	90.9	96.1	91.0	99.5	576.1	Link
-MSCOCO-1K	Swin-224	87.2	94.9	84.7	99.0	563.9	Link
-MSCOCO-1K	Swin-384	89.5	96.5	87.1	99.2	571.2	Link
-MSCOCO-5K	ViT-224	73.9	85.2	73.5	94.5	516.9	Link
-MSCOCO-5K	ViT-384	77.8	88.7	78.5	96.3	534.6	Link
-MSCOCO-5K	Swin-224	71.9	86.0	66.8	92.2	506.1	Link
-MSCOCO-5K	Swin-384	74.7	88.4	70.3	93.8	519.1	Link
+---
+
+## Performances
+
+The following table reports the retrieval performance of BeyondPaSli on Flickr30K and MS-COCO. We report Recall@1 and Recall@5 for image-to-text retrieval and text-to-image retrieval, together with rSum.
+
+| Datasets | Visual encoders | I2T R@1 | I2T R@5 | T2I R@1 | T2I R@5 | rSum | Model checkpoint and train log |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Flickr30K | ViT-224 | 87.2 | 94.7 | 86.4 | 98.6 | 563.8 | Link |
+| Flickr30K | ViT-384 | 92.0 | 96.9 | 91.4 | 99.3 | 578.4 | Link |
+| Flickr30K | Swin-224 | 92.0 | 97.3 | 92.4 | 99.6 | 581.1 | Link |
+| Flickr30K | Swin-384 | 94.5 | 97.8 | 93.8 | 99.7 | 584.9 | Link |
+| MSCOCO-1K | ViT-224 | 90.1 | 95.8 | 89.2 | 99.4 | 572.7 | Link |
+| MSCOCO-1K | ViT-384 | 92.4 | 97.2 | 91.7 | 99.8 | 580.1 | Link |
+| MSCOCO-1K | Swin-224 | 93.0 | 97.3 | 92.3 | 99.7 | 581.8 | Link |
+| MSCOCO-1K | Swin-384 | 94.2 | 98.1 | 93.6 | 99.8 | 585.1 | Link |
+| MSCOCO-5K | ViT-224 | 76.3 | 87.8 | 74.9 | 95.3 | 525.9 | Link |
+| MSCOCO-5K | ViT-384 | 80.6 | 91.1 | 80.1 | 96.9 | 543.6 | Link |
+| MSCOCO-5K | Swin-224 | 83.0 | 91.9 | 81.1 | 97.2 | 548.1 | Link |
+| MSCOCO-5K | Swin-384 | 84.4 | 93.5 | 83.8 | 97.8 | 555.6 | Link |
+
+---
+
+## Citation
+
+If you find this repository useful, please cite our paper:
+
+```bibtex
+@misc{sim2026beyondpasli,
+  title  = {Beyond Patch Slimming: Discriminative Reweighting for Fine-Grained Cross-Modal Alignment},
+  author = {Sim, Yerin},
+  year   = {2026}
+}
+```
+
+---
+
+## Acknowledgements
+
+This repository is adapted from [SEPS](https://github.com/Sweet4tars/seps). We also acknowledge the implementations of [LAPS](https://github.com/CrossmodalGroup/LAPS) and [D2S-VSE](https://github.com/liuyyy111/d2s-vse).
