@@ -15,7 +15,7 @@ Our paper is coming soon.
 Fine-grained image--text retrieval requires more than detecting coarse semantic overlap between an image and a caption. In large-candidate retrieval, the decisive challenge is to identify which local visual evidence justifies the top-ranked match against semantically confusable hard negatives. A visual patch may be broadly relevant to a caption, but still be replaceable, redundant, or equally compatible with a hard negative.
 
 <div align=center>
-<img src="IMG/img2.PNG" width="100%">
+<img src="img/img2.png" width="100%">
 </div>
 
 Recent fine-grained cross-modal alignment methods improve local correspondence by matching region--word or patch--word representations. Patch-slimming methods further reduce redundant visual tokens before matching, allowing the model to focus on a compact candidate set. However, existing patch-slimming frameworks mainly ask **which patches should be retained**, while leaving a subsequent question underexplored: **which retained patches should actually govern the final ranking decision?**
@@ -35,7 +35,7 @@ Functionally, BeyondPaSli first obtains candidate patches through sparse--dense 
 Extensive experiments on Flickr30K and MS-COCO demonstrate that BeyondPaSli consistently improves image--text retrieval across ViT and Swin backbones at both 224 and 384 resolutions. The largest gains appear in hard-negative retrieval settings. On MS-COCO 5K with Swin-Base-224, BeyondPaSli improves over SEPS by **+42.0 rSum**, including **+11.1 image-to-text R@1** and **+14.3 text-to-image R@1**.
 
 <div align=center>
-<img src="IMG/img.PNG" width="100%">
+<img src="img/img1.png" width="100%">
 </div>
 
 ---
